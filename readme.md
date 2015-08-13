@@ -24,7 +24,7 @@ Once the process has been completed it will have generated two output files in t
 
 ## dsusers ##
 
-The extracted files can then be used with the **dsusers.py** script from the ntdsxtrct project:
+The extracted files can then be used with the **dsusers.py** script from the ntdsxtract project:
 
     python ./dsusers.py datatable.csv linktable.csv . --passwordhashes --syshive SYSTEM --pwdformat john --lmoutfile lm.txt --ntoutfile nt.txt
 
