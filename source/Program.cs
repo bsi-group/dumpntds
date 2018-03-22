@@ -139,7 +139,11 @@ namespace dumpntds
                             }
                         } 
 
-                        obj.Add(column.Name, formattedData.Replace("\0", string.Empty));
+                        //add the column
+                        //replace null terminators with empty strings
+                        //replace newlines with a single space
+                        //trim any whitespace from the value
+                        obj.Add(column.Name, formattedData.Replace("\0", string.Empty).Replace("\n", " ").Trim());
                     }
 
                     // Now write out each columns data
