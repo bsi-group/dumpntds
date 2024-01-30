@@ -6,12 +6,19 @@ using System.Text;
 using CommandLine;
 using Microsoft.Isam.Esent.Interop;
 using Microsoft.Isam.Esent.Interop.Vista;
-using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace dumpntds
 {
     internal static class Program
     {
+        private static readonly JsonSerializerOptions options = new()
+        {
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.Strict,
+            WriteIndented = true
+        };
+
         /// <summary>
         /// The columns from the "ntds" ESENT database, just the columns from the
         /// "datatable" table that are needed by the "ntdsxtract" script to parse
@@ -110,7 +117,8 @@ namespace dumpntds
                 ["datatable"] = ExtractDatatableAsList(session, dbid),
                 ["linktable"] = ExtractLinkTableAsList(session, dbid)
             };
-            var json = JsonConvert.SerializeObject(ntdsDictionary, Formatting.Indented);
+
+            var json = JsonSerializer.Serialize(ntdsDictionary, options);
 
             File.WriteAllText("ntds.json", json);
         }

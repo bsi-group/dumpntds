@@ -11,7 +11,7 @@ The aim of dumpntds is to extract the minimal amount of data required (45 column
 
 dumpntds uses the [ManagedEsent](https://github.com/microsoft/ManagedEsent) library to access the data stored in the ntds.dit file. The ManagedEsent library wraps the underlying Windows API calls and therefore needs to be run using .Net, rather than Mono.
 
-This fork updates the underlying framework to .NET 8.0 and uses NuGet packages rather than deploying dependencies as a part of repository.
+This fork updates the underlying framework to .NET 8.0 and uses NuGet packages rather than deploying dependencies as a part of repository. It is possible to publish as a single-file. The trimmed version's size is around 20MB.
 
 There is also a single-file JSON export mode whcich can be used to integrate other tools while breaking `ntdsxtract` importability. The JSON export is opinionated and ignores null values to minimize the exported JSON file size.
 
