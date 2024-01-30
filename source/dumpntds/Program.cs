@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using CommandLine;
@@ -66,6 +67,7 @@ namespace dumpntds
         /// Application entry point
         /// </summary>
         /// <param name="args"></param>
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(Options))]
         public static void Main(string[] args) => _ = Parser.Default.ParseArguments<Options>(args)
                 .WithParsed(RunOptions)
                 .WithNotParsed(HandleParseError);
