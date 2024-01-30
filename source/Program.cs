@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Dynamic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using CommandLine;
 using Microsoft.Isam.Esent.Interop;
 using Microsoft.Isam.Esent.Interop.Vista;
-using System.Dynamic;
-using System.Reflection;
-using System.IO;
 
 namespace dumpntds
 {
@@ -25,10 +25,6 @@ namespace dumpntds
             "ATTk589984", "ATTk591734", "ATTk36", "ATTk589949", "ATTj589993", "ATTm590443", "ATTm590187",
             "ATTm590188", "ATTm591788", "ATTk591823", "ATTk591822", "ATTk591789", "ATTi590943", "ATTk590689" };
 
-        /// <summary>
-        /// Command line parsing object
-        /// </summary>
-        private static Options options;
 
         /// <summary>
         /// Application entry point
@@ -36,54 +32,43 @@ namespace dumpntds
         /// <param name="args"></param>
         static void Main(string[] args)
         {
-            try
+            var res = Parser.Default.ParseArguments<Options>(args)
+                .WithParsed(RunOptions)
+                .WithNotParsed(HandleParseError);
+        }
+
+        static void RunOptions(Options opts)
+        {
+            if (File.Exists(opts.Ntds) == false)
             {
-                Assembly assembly = Assembly.GetExecutingAssembly();
-                AssemblyName assemblyName = assembly.GetName();
-
-                Console.WriteLine(Environment.NewLine + "dumpntds v" + assemblyName.Version.ToString(3) + Environment.NewLine);
-
-                options = new Options();
-                if (CommandLine.Parser.Default.ParseArguments(args, options) == false)
-                {
-                    return;
-                }
-
-                if (File.Exists(options.Ntds) == false)
-                {
-                    Console.WriteLine("ntds.dit file does not exist");
-                }
-
-                Api.JetSetSystemParameter(JET_INSTANCE.Nil, JET_SESID.Nil, JET_param.DatabasePageSize, (int)8192, null);
-
-                using (var instance = new Instance("dumpntds"))
-                {
-                    instance.Parameters.Recovery = false;
-                    instance.Init();
-
-                    using (var session = new Session(instance))
-                    {
-                        JET_DBID dbid;
-
-                        Api.JetAttachDatabase(session, options.Ntds, AttachDatabaseGrbit.ReadOnly);
-                        Api.JetOpenDatabase(session, options.Ntds, null, out dbid, OpenDatabaseGrbit.ReadOnly);
-
-                        ExportDataTable(session, dbid);
-                        ExportLinkTable(session, dbid);
-                    }
-                }
+                Console.WriteLine("ntds.dit file does not exist");
             }
-            catch (Exception ex)
+
+            Api.JetSetSystemParameter(JET_INSTANCE.Nil, JET_SESID.Nil, JET_param.DatabasePageSize, (int)8192, null);
+
+            using (var instance = new Instance("dumpntds"))
             {
-                Console.WriteLine("Error: " + ex.Message);
+                instance.Parameters.Recovery = false;
+                instance.Init();
+
+                using (var session = new Session(instance))
+                {
+                    JET_DBID dbid;
+
+                    Api.JetAttachDatabase(session, opts.Ntds, AttachDatabaseGrbit.ReadOnly);
+                    Api.JetOpenDatabase(session, opts.Ntds, null, out dbid, OpenDatabaseGrbit.ReadOnly);
+
+                    ExportDataTable(session, dbid);
+                    ExportLinkTable(session, dbid);
+                }
             }
         }
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="session"></param>
-        /// <param name="dbid"></param>
+        static void HandleParseError(IEnumerable<Error> errs)
+        {
+            // We can log it out but fo now, we will ignore.
+        }
+
         private static void ExportDataTable(Session session, JET_DBID dbid)
         {
             // Extract and cache the columns from the "datatable" table. Note
@@ -147,7 +132,14 @@ namespace dumpntds
                     foreach (string property in userColumns)
                     {
                         index += 1;
-                        file.Write(obj[property]);
+                        if (obj.TryGetValue(property, out var val))
+                        {
+                            file.Write(val);
+                        }
+                        else
+                        {
+                            file.Write(string.Empty);
+                        }
                         if (index != userColumns.Count())
                         {
                             file.Write("\t");
@@ -160,11 +152,6 @@ namespace dumpntds
             }
         }
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="session"></param>
-        /// <param name="dbid"></param>
         private static void ExportLinkTable(Session session, JET_DBID dbid)
         {
             using (System.IO.StreamWriter file = new System.IO.StreamWriter("linktable.csv"))
@@ -256,7 +243,7 @@ namespace dumpntds
                         temp = string.Format("{0}", Api.RetrieveColumnAsDouble(session, table, columnInfo.Columnid));
                         break;
                     case JET_coltyp.IEEESingle:
-                       temp =  string.Format("{0}", Api.RetrieveColumnAsFloat(session, table, columnInfo.Columnid));
+                        temp = string.Format("{0}", Api.RetrieveColumnAsFloat(session, table, columnInfo.Columnid));
                         break;
                     case JET_coltyp.Long:
                         temp = string.Format("{0}", Api.RetrieveColumnAsInt32(session, table, columnInfo.Columnid));
@@ -291,7 +278,8 @@ namespace dumpntds
                         break;
                 }
 
-                if (temp == null) {
+                if (temp == null)
+                {
                     return "";
                 }
 

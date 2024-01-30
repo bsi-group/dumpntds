@@ -1,2 +1,0 @@
-URL: https://managedesent.codeplex.com/
-Version: 1.9.2.0
