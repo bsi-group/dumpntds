@@ -6,6 +6,7 @@ using System.Text;
 using CommandLine;
 using Microsoft.Isam.Esent.Interop;
 using Microsoft.Isam.Esent.Interop.Vista;
+using Newtonsoft.Json;
 
 namespace dumpntds
 {
@@ -44,7 +45,7 @@ namespace dumpntds
         {
             if (!File.Exists(opts.Ntds))
             {
-                Console.WriteLine("ntds.dit file does not exist");
+                Console.WriteLine($"ntds.dit file does not exist in the path {opts.Ntds}");
             }
 
             Api.JetSetSystemParameter(JET_INSTANCE.Nil, JET_SESID.Nil, JET_param.DatabasePageSize, 8192, null);
@@ -58,10 +59,124 @@ namespace dumpntds
                 {
                     Api.JetAttachDatabase(session, opts.Ntds, AttachDatabaseGrbit.ReadOnly);
                     Api.JetOpenDatabase(session, opts.Ntds, null, out var dbid, OpenDatabaseGrbit.ReadOnly);
-
-                    ExportCsv(session, dbid);
+                    if (opts.ExportType == ExportType.Csv)
+                    {
+                        ExportCsv(session, dbid);
+                    }
+                    else
+                    {
+                        ExportJson(session, dbid);
+                    }
                 }
             }
+        }
+
+        private static void ExportJson(Session session, JET_DBID dbid)
+        {
+            var ntdsDictionary = new Dictionary<string, object>
+            {
+                ["datatable"] = ExtractDatatableAsList(session, dbid),
+                ["linktable"] = ExtractLinkTableAsList(session, dbid)
+            };
+            var json = JsonConvert.SerializeObject(ntdsDictionary, Formatting.Indented);
+
+            File.WriteAllText("ntds.json", json);
+        }
+
+        private static List<IDictionary<string, object>> ExtractDatatableAsList(Session session, JET_DBID dbid)
+        {
+            var datatableValues = new List<IDictionary<string, object>>();
+
+            // Extract and cache the columns from the "datatable" table. Note
+            // that we are only interested in the columns needed for "ntdsextract"
+            var propertyNames = new List<ColumnInfo>();
+            foreach (var column in Api.GetTableColumns(session, dbid, "datatable"))
+            {
+                if (!userColumns.Contains(column.Name))
+                {
+                    continue;
+                }
+                propertyNames.Add(column);
+            }
+
+            using (var file = new StreamWriter("datatable.csv"))
+            using (var table = new Table(session, dbid, "datatable", OpenTableGrbit.ReadOnly))
+            {
+                Api.JetSetTableSequential(session, table, SetTableSequentialGrbit.None);
+                Api.MoveBeforeFirst(session, table);
+
+                var formattedData = string.Empty;
+                while (Api.TryMoveNext(session, table))
+                {
+                    IDictionary<string, object> obj = new ExpandoObject();
+                    foreach (var property in propertyNames)
+                    {
+                        formattedData = GetFormattedValue(session, table, property);
+                        // The first row has a null "PDNT_col" value which causes issues with the "ntdsxtract" scripts.
+                        // esedbexport seems to have some other value, esedbexport parses the data, rather than using the API
+                        if (property.Name == "PDNT_col")
+                        {
+                            if (formattedData.Length == 0)
+                            {
+                                obj.Add(property.Name, "0");
+                                continue;
+                            }
+                        }
+
+                        var propertyValue = formattedData.Replace("\0", string.Empty);
+                        // Ignore emptry or null values
+                        if (!string.IsNullOrEmpty(propertyValue))
+                        {
+                            obj.Add(property.Name, propertyValue);
+                        }
+                    }
+
+                    datatableValues.Add(obj);
+                }
+
+                Api.JetResetTableSequential(session, table, ResetTableSequentialGrbit.None);
+            }
+
+            return datatableValues;
+        }
+
+        private static List<IDictionary<string, object>> ExtractLinkTableAsList(Session session, JET_DBID dbid)
+        {
+            var linktableValues = new List<IDictionary<string, object>>();
+
+            using (var file = new StreamWriter("linktable.csv"))
+            using (var table = new Table(session, dbid, "link_table", OpenTableGrbit.ReadOnly))
+            {
+                // Extract and cache the columns from the "link_table" table
+                var propertyNames = new List<ColumnInfo>(Api.GetTableColumns(session, dbid, "link_table"));
+
+                Api.JetSetTableSequential(session, table, SetTableSequentialGrbit.None);
+                Api.MoveBeforeFirst(session, table);
+
+                var temp = new List<dynamic>();
+
+                var formattedData = string.Empty;
+                while (Api.TryMoveNext(session, table))
+                {
+                    IDictionary<string, object> obj = new ExpandoObject();
+                    foreach (var property in propertyNames)
+                    {
+                        formattedData = GetFormattedValue(session, table, property);
+                        var propertyValue = formattedData.Replace("\0", string.Empty);
+                        // Ignore emptry or null values
+                        if (!string.IsNullOrEmpty(propertyValue))
+                        {
+                            obj.Add(property.Name, propertyValue);
+                        }
+                    }
+
+                    linktableValues.Add(obj);
+                }
+
+                Api.JetResetTableSequential(session, table, ResetTableSequentialGrbit.None);
+            }
+
+            return linktableValues;
         }
 
         private static void ExportCsv(Session session, JET_DBID dbid)
@@ -98,13 +213,13 @@ namespace dumpntds
                         file.Write("\t");
                     }
                 }
-                file.WriteLine("");
+                file.WriteLine(string.Empty);
 
                 Api.JetSetTableSequential(session, table, SetTableSequentialGrbit.None);
                 Api.MoveBeforeFirst(session, table);
 
                 var currentRow = 0;
-                var formattedData = "";
+                var formattedData = string.Empty;
                 while (Api.TryMoveNext(session, table))
                 {
                     currentRow++;
@@ -112,7 +227,7 @@ namespace dumpntds
                     IDictionary<string, object> obj = new ExpandoObject();
                     foreach (var column in columns)
                     {
-                        formattedData = GetFormattedColumnData(session, table, column);
+                        formattedData = GetFormattedValue(session, table, column);
                         // The first row has a null "PDNT_col" value which causes issues with the "ntdsxtract" scripts.
                         // esedbexport seems to have some other value, esedbexport parses the data, rather than using the API
                         if (column.Name == "PDNT_col")
@@ -145,7 +260,7 @@ namespace dumpntds
                             file.Write("\t");
                         }
                     }
-                    file.WriteLine("");
+                    file.WriteLine(string.Empty);
                 }
 
                 Api.JetResetTableSequential(session, table, ResetTableSequentialGrbit.None);
@@ -171,7 +286,7 @@ namespace dumpntds
                         file.Write("\t");
                     }
                 }
-                file.WriteLine("");
+                file.WriteLine(string.Empty);
 
                 Api.JetSetTableSequential(session, table, SetTableSequentialGrbit.None);
                 Api.MoveBeforeFirst(session, table);
@@ -179,7 +294,7 @@ namespace dumpntds
                 var temp = new List<dynamic>();
 
                 var currentRow = 0;
-                var formattedData = "";
+                var formattedData = string.Empty;
                 while (Api.TryMoveNext(session, table))
                 {
                     currentRow++;
@@ -187,7 +302,7 @@ namespace dumpntds
                     IDictionary<string, object> obj = new ExpandoObject();
                     foreach (var column in columns)
                     {
-                        formattedData = GetFormattedColumnData(session, table, column);
+                        formattedData = GetFormattedValue(session, table, column);
                         obj.Add(column.Name, formattedData.Replace("\0", string.Empty));
                     }
 
@@ -237,13 +352,13 @@ namespace dumpntds
         /// <param name="table"></param>
         /// <param name="columnInfo"></param>
         /// <returns></returns>
-        private static string GetFormattedColumnData(Session session,
+        private static string GetFormattedValue(Session session,
                                                     JET_TABLEID table,
                                                     ColumnInfo columnInfo)
         {
             try
             {
-                var temp = "";
+                var temp = string.Empty;
 
                 switch (columnInfo.Coltyp)
                 {

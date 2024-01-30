@@ -9,5 +9,8 @@ namespace dumpntds
     {
         [Option('n', "ntds", Required = true, Default = "", HelpText = "Path to ntds.dit file")]
         public string Ntds { get; set; }
+
+        [Option('t', "type", Required = false, Default = ExportType.Csv, HelpText = "Export type")]
+        public ExportType ExportType { get; set; }
     }
 }
