@@ -13,8 +13,8 @@ namespace dumpntds
     class Program
     {
         /// <summary>
-        /// The columns from the "ntds" ESENT database, just the columns from the 
-        /// "datatable" table that are needed by the "ntdsxtract" script to parse 
+        /// The columns from the "ntds" ESENT database, just the columns from the
+        /// "datatable" table that are needed by the "ntdsxtract" script to parse
         /// the user details including password hashes
         /// </summary>
         private static List<string> userColumns = new List<string> { "DNT_col", "PDNT_col", "time_col",
@@ -80,13 +80,13 @@ namespace dumpntds
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="session"></param>
         /// <param name="dbid"></param>
         private static void ExportDataTable(Session session, JET_DBID dbid)
         {
-            // Extract and cache the columns from the "datatable" table. Note 
+            // Extract and cache the columns from the "datatable" table. Note
             // that we are only interested in the columns needed for "ntdsextract"
             List<ColumnInfo> columns = new List<ColumnInfo>();
             foreach (ColumnInfo column in Api.GetTableColumns(session, dbid, "datatable"))
@@ -96,12 +96,12 @@ namespace dumpntds
                     continue;
                 }
                 columns.Add(column);
-            }            
+            }
 
             using (System.IO.StreamWriter file = new System.IO.StreamWriter("datatable.csv"))
             using (var table = new Microsoft.Isam.Esent.Interop.Table(session, dbid, "datatable", OpenTableGrbit.ReadOnly))
             {
-                // Write out the column headers 
+                // Write out the column headers
                 int index = 0;
                 foreach (string property in userColumns)
                 {
@@ -128,7 +128,7 @@ namespace dumpntds
                     foreach (ColumnInfo column in columns)
                     {
                         formattedData = GetFormattedColumnData(session, table, column);
-                        // The first row has a null "PDNT_col" value which causes issues with the "ntdsxtract" scripts. 
+                        // The first row has a null "PDNT_col" value which causes issues with the "ntdsxtract" scripts.
                         // esedbexport seems to have some other value, esedbexport parses the data, rather than using the API
                         if (column.Name == "PDNT_col")
                         {
@@ -137,7 +137,7 @@ namespace dumpntds
                                 obj.Add(column.Name, "0");
                                 continue;
                             }
-                        } 
+                        }
 
                         obj.Add(column.Name, formattedData.Replace("\0", string.Empty));
                     }
@@ -161,7 +161,7 @@ namespace dumpntds
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="session"></param>
         /// <param name="dbid"></param>
@@ -171,7 +171,7 @@ namespace dumpntds
             using (var table = new Microsoft.Isam.Esent.Interop.Table(session, dbid, "link_table", OpenTableGrbit.ReadOnly))
             {
                 // Extract and cache the columns from the "link_table" table
-                List<ColumnInfo> columns = new List<ColumnInfo>();          
+                List<ColumnInfo> columns = new List<ColumnInfo>();
                 foreach (ColumnInfo column in Api.GetTableColumns(session, dbid, "link_table"))
                 {
                     columns.Add(column);
@@ -219,7 +219,7 @@ namespace dumpntds
                         {
                             file.Write("\t");
                         };
-                    }                
+                    }
                     file.WriteLine("");
                 }
 
@@ -240,7 +240,7 @@ namespace dumpntds
                                                     ColumnInfo columnInfo)
         {
             try
-            {            
+            {
                 string temp = "";
 
                 switch (columnInfo.Coltyp)
