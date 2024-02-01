@@ -4,12 +4,12 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyTitle>dumpntsd</AssemblyTitle>
-    <Company>Info-Assure</Company>
-    <Product>dumpntsd</Product>
+    <AssemblyTitle>ditjson</AssemblyTitle>
+    <Company>Info-Assure, Zafer Balkan</Company>
+    <Product>ditjson</Product>
     <Copyright>Copyright © Info-Assure 2015, © Zafer Balkan 2023</Copyright>
-    <AssemblyVersion>1.0.1</AssemblyVersion>
-    <FileVersion>1.0.1</FileVersion>
+    <AssemblyVersion>1.0.2</AssemblyVersion>
+    <FileVersion>1.0.2</FileVersion>
      <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
   <ItemGroup>

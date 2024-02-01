@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 
-namespace dumpntds
+namespace ditjson
 {
     /// <inheritdoc/>
     [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]

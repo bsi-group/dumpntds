@@ -1,6 +1,6 @@
 ﻿using CommandLine;
 
-namespace dumpntds
+namespace ditjson
 {
     /// <summary>
     /// Internal class used for the command line parsing
@@ -9,8 +9,5 @@ namespace dumpntds
     {
         [Option('n', "ntds", Required = true, Default = "", HelpText = "Path to ntds.dit file")]
         public string Ntds { get; set; }
-
-        [Option('t', "type", Required = false, Default = ExportType.Csv, HelpText = "Export type")]
-        public ExportType ExportType { get; set; }
     }
 }

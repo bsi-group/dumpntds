@@ -31,10 +31,10 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          release_name="release-dumpntds-${{ matrix.target }}"
+          release_name="release-ditjson-${{ matrix.target }}"
 
           # Build everything
-          dotnet publish ./source/dumpntds.sln --framework net8.0 --runtime "${{ matrix.target }}" -c Release -o "$release_name"
+          dotnet publish ./source/ditjson.sln --framework net8.0 --runtime "${{ matrix.target }}" -c Release -o "$release_name"
 
           # Remove unnecessary files
             rm -f "./${release_name}/*.config" 2> /dev/null
