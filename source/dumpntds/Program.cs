@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using CommandLine;
 using Microsoft.Isam.Esent.Interop;
 using Microsoft.Isam.Esent.Interop.Vista;
-using System.Text.Json;
+using Microsoft.Isam.Esent.Interop.Windows10;
 
 namespace dumpntds
 {
@@ -386,71 +387,79 @@ namespace dumpntds
         /// <param name="table"></param>
         /// <param name="columnInfo"></param>
         /// <returns></returns>
+        /// <exception cref="NtdsException"></exception>
         private static string GetFormattedValue(Session session,
                                                     JET_TABLEID table,
                                                     ColumnInfo columnInfo)
         {
-            try
+            var temp = string.Empty;
+
+            // Edge case: link_data_v2 column cannot be retreived properly
+            // None of the Api.RetrieveColumnXXX commands can process this column.
+            if (columnInfo.Name.Equals("link_data_v2"))
             {
-                var temp = string.Empty;
-
-                switch (columnInfo.Coltyp)
-                {
-                    case JET_coltyp.Bit:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsBoolean(session, table, columnInfo.Columnid));
-                        break;
-                    case VistaColtyp.LongLong:
-                    case JET_coltyp.Currency:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsInt64(session, table, columnInfo.Columnid));
-                        break;
-                    case JET_coltyp.IEEEDouble:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsDouble(session, table, columnInfo.Columnid));
-                        break;
-                    case JET_coltyp.IEEESingle:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsFloat(session, table, columnInfo.Columnid));
-                        break;
-                    case JET_coltyp.Long:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsInt32(session, table, columnInfo.Columnid));
-                        break;
-                    case JET_coltyp.Text:
-                    case JET_coltyp.LongText:
-                        var encoding = (columnInfo.Cp == JET_CP.Unicode) ? Encoding.Unicode : Encoding.ASCII;
-                        temp = string.Format("{0}", Api.RetrieveColumnAsString(session, table, columnInfo.Columnid, encoding));
-                        break;
-                    case JET_coltyp.Short:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsInt16(session, table, columnInfo.Columnid));
-                        break;
-                    case JET_coltyp.UnsignedByte:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsByte(session, table, columnInfo.Columnid));
-                        break;
-                    case JET_coltyp.DateTime:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsDateTime(session, table, columnInfo.Columnid));
-                        break;
-                    case VistaColtyp.UnsignedShort:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsUInt16(session, table, columnInfo.Columnid));
-                        break;
-                    case VistaColtyp.UnsignedLong:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsUInt32(session, table, columnInfo.Columnid));
-                        break;
-                    case VistaColtyp.GUID:
-                        temp = string.Format("{0}", Api.RetrieveColumnAsGuid(session, table, columnInfo.Columnid));
-                        break;
-                    case JET_coltyp.Nil:
-                        break;
-                    case JET_coltyp.Binary:
-                    case JET_coltyp.LongBinary:
-                    default:
-                        temp = FormatBytes(Api.RetrieveColumn(session, table, columnInfo.Columnid));
-                        break;
-                }
-
                 return temp;
             }
-            catch (Exception ex)
+
+            switch (columnInfo.Coltyp)
             {
-                Console.WriteLine($"Error formatting data: {ex}");
-                return string.Empty;
+                case JET_coltyp.Bit:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsBoolean(session, table, columnInfo.Columnid));
+                    break;
+                case VistaColtyp.LongLong:
+                case Windows10Coltyp.UnsignedLongLong:
+                case JET_coltyp.Currency:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsInt64(session, table, columnInfo.Columnid));
+                    break;
+                case JET_coltyp.IEEEDouble:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsDouble(session, table, columnInfo.Columnid));
+                    break;
+                case JET_coltyp.IEEESingle:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsFloat(session, table, columnInfo.Columnid));
+                    break;
+                case JET_coltyp.Long:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsInt32(session, table, columnInfo.Columnid));
+                    break;
+                case JET_coltyp.Text:
+                case JET_coltyp.LongText:
+                    var encoding = (columnInfo.Cp == JET_CP.Unicode) ? Encoding.Unicode : Encoding.ASCII;
+                    temp = string.Format("{0}", Api.RetrieveColumnAsString(session, table, columnInfo.Columnid, encoding));
+                    break;
+                case JET_coltyp.Short:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsInt16(session, table, columnInfo.Columnid));
+                    break;
+                case JET_coltyp.UnsignedByte:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsByte(session, table, columnInfo.Columnid));
+                    break;
+                case JET_coltyp.DateTime:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsDateTime(session, table, columnInfo.Columnid));
+                    break;
+                case VistaColtyp.UnsignedShort:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsUInt16(session, table, columnInfo.Columnid));
+                    break;
+                case VistaColtyp.UnsignedLong:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsUInt32(session, table, columnInfo.Columnid));
+                    break;
+                case VistaColtyp.GUID:
+                    temp = string.Format("{0}", Api.RetrieveColumnAsGuid(session, table, columnInfo.Columnid));
+                    break;
+                case JET_coltyp.Nil:
+                    break;
+                case JET_coltyp.Binary:
+                case JET_coltyp.LongBinary:
+                    var columnBytes = Api.RetrieveColumn(session, table, columnInfo.Columnid);
+                    if (columnBytes != null)
+                    {
+                        temp = FormatBytes(columnBytes);
+                    }
+
+                    break;
+
+                default:
+                    throw new NtdsException($"Unhandled column type {columnInfo.Coltyp} for {columnInfo.Columnid}");
             }
+
+            return temp;
         }
     }
 }
